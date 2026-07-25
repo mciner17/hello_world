@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -190,6 +191,15 @@ def load_portfolio(path: str | Path) -> Portfolio:
         )
         for a in raw.get("external_accounts", [])
     ]
+
+    if raw.get("placeholder_data", False):
+        # Loud on purpose. Placeholder holdings that leak into a recommendation
+        # produce advice about a portfolio nobody owns.
+        print(
+            f"\n*** WARNING: {Path(path).name} is PLACEHOLDER DATA, not real holdings.\n"
+            "*** Everything below describes an invented portfolio.\n",
+            file=sys.stderr,
+        )
 
     return Portfolio(
         positions=positions,

@@ -1,8 +1,9 @@
-# Copy to portfolio.yaml and replace with your real numbers.
-# Prices are snapshots -- update them before you rely on any output.
+# EXAMPLE ONLY -- every number below is invented.
 #
-# The shape below is a ~$80k all-taxable account with a $25k near-term cash
-# need and a large untouched 401k alongside it. Positions are placeholders.
+# Copy to portfolio.yaml and replace with your real holdings before running
+# anything. The flag below makes the tool shout if you forget; delete it only
+# once the positions are genuinely yours.
+placeholder_data: true
 
 cash: 3000
 
@@ -71,16 +72,20 @@ cash_needs:
 # Target weights for the INVESTABLE remainder (after cash needs are reserved).
 # Must sum to 1.0.
 #
-# Note the small `core` weight. That is deliberate for this profile: with a
-# large 401k presumably already holding broad index exposure, buying more of
-# the same in a small taxable account duplicates the core and spends the risk
-# budget where it was not wanted. If the 401k turns out NOT to be diversified,
+# `core` is small here on the assumption that a large 401k already holds broad
+# index exposure. If that outside account turns out NOT to be diversified,
 # raise `core` substantially before anything else.
+#
+# `spacex` is a real sleeve: SpaceX trades as NASDAQ:SPCX following its
+# 2026-06-12 IPO. Note that its insider lockup unwinds in tranches from
+# 2026-08-06 through 2026-12-08, so verify where that schedule stands before
+# sizing -- and see the README on why the agent re-checks corporate status
+# rather than trusting any of this comment.
 targets:
   core: 0.15
-  semiconductor: 0.28
+  semiconductor: 0.26
   quantum: 0.15
   utilities: 0.14
-  tesla: 0.13
-  spacex_proxy: 0.05   # see README -- SpaceX is private; read before funding
+  tesla: 0.12
+  spacex: 0.08
   cash: 0.10           # dry powder, separate from the October reserve

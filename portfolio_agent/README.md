@@ -73,15 +73,19 @@ for exactly this reason.
 
 ## Things worth knowing before you trust the output
 
-**SpaceX is not directly purchasable.** It is a private company. The
-`spacex_proxy` sleeve in the example config is a placeholder, not a
-recommendation. The available vehicles all have significant costs that the
-headline exposure hides — closed-end funds that can trade at large premiums to
-NAV, venture funds with lockups and high expense ratios, and pre-IPO secondary
-platforms with accreditation requirements. In most of these, SpaceX is a
-minority of the holdings, so you are buying a basket and paying a fee for the
-part you wanted. The research agent is instructed to price these explicitly
-rather than treat the sleeve as fillable. Read that section before funding it.
+**Corporate status is re-verified, never remembered.** This tool was first
+written asserting from training data that SpaceX was private and unbuyable. It
+had IPO'd — NASDAQ:SPCX, June 12 2026 — weeks earlier. Every recommendation
+built on that claim was worthless.
+
+The lesson is encoded in the research prompt as rule zero: whether a company is
+public, under what ticker, and whether it has been acquired, renamed, split, or
+delisted must be checked by search at the moment of writing, alongside prices,
+index membership, lockup schedules, and earnings dates. Reports open with the
+UTC timestamp at which facts were verified, and unverifiable figures are marked
+`UNVERIFIED` rather than filled in from memory. Any comment in this repo naming
+a specific price, date, or corporate status is stale by the time you read it —
+including the ones in `portfolio.example.yaml`.
 
 **Tax estimates are approximations.** They apply a flat rate to realized gains
 by lot. They do not model wash sales, net investment income tax, state tax,
@@ -91,10 +95,22 @@ compare two sale plans against each other, not as a number to put on a return.
 **Prices are whatever you last typed into the config.** Nothing in this tool
 fetches quotes. Stale prices produce confidently wrong allocations.
 
-**The research agent searches the web and can still be wrong.** It is
-instructed to cite sources and dates for every figure and to label speculation
-as speculation. Verify anything you are about to act on, particularly numbers
-that drive a large trade.
+**Your holdings come only from your config.** The agent is instructed never to
+infer, assume, or invent a position, and never to use the example file as a
+stand-in for real holdings. `placeholder_data: true` in a config makes the tool
+print a warning on every load; the example ships with it set. Delete it only
+when the positions in the file are genuinely yours.
+
+**The agent speculates on purpose.** It is built to make dated, probabilistic
+predictions on two horizons — 12-24 months and 5-10 years — and to size bets on
+them. What it will not do is blur the three kinds of claim: each is labeled
+`FUNDAMENTAL` (from filings), `EXPECTATION` (what the market prices in), or
+`SPECULATION` (a forecast with no confirming evidence yet). A speculation is a
+legitimate basis for a position. An unlabeled one dressed as a fundamental is
+not.
+
+**The research agent searches the web and can still be wrong.** Verify anything
+you are about to act on, particularly numbers that drive a large trade.
 
 This is a research and modeling tool, not financial advice, and none of its
 authors are your adviser.

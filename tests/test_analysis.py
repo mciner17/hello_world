@@ -179,3 +179,31 @@ def test_household_view_is_inert_without_external_accounts():
     view = analysis.household_view(make_portfolio())
     assert view["external_value"] == 0
     assert view["managed_share"] == pytest.approx(1.0)
+
+
+def test_placeholder_config_warns_loudly(tmp_path, capsys):
+    """Placeholder holdings must never pass silently as real ones."""
+    from portfolio_agent.models import load_portfolio
+
+    config = tmp_path / "example.yaml"
+    config.write_text(
+        "placeholder_data: true\n"
+        "cash: 1000\n"
+        "positions:\n"
+        "  - {ticker: VOO, shares: 1, price: 500.0, sleeve: core}\n"
+    )
+    load_portfolio(config)
+    assert "PLACEHOLDER DATA" in capsys.readouterr().err
+
+
+def test_real_config_does_not_warn(tmp_path, capsys):
+    from portfolio_agent.models import load_portfolio
+
+    config = tmp_path / "portfolio.yaml"
+    config.write_text(
+        "cash: 1000\n"
+        "positions:\n"
+        "  - {ticker: VOO, shares: 1, price: 500.0, sleeve: core}\n"
+    )
+    load_portfolio(config)
+    assert capsys.readouterr().err == ""
