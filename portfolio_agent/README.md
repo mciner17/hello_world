@@ -52,6 +52,25 @@ never proposed as a funding source.
 loss lots when selling, and every tax estimate is zero — which will make sales
 look cheaper than they are.
 
+## Household context
+
+`external_accounts` lists money that counts toward your risk picture but is
+never traded by this tool — typically a 401k you are leaving alone. It changes
+two things:
+
+- `status` reports risk capital as a share of the *household*, not of the
+  sub-account. A sleeve that looks aggressive at 30% of a small taxable account
+  may be 4% of everything you own.
+- The research agent is told about it and instructed to size against the
+  household total.
+
+Fill in `composition` honestly. If a large outside account is a target-date
+fund, the managed account can reasonably carry concentrated bets. If it is
+loaded with company stock or the same megacap tech that your themes track, the
+managed account is doubling down rather than diversifying, and the correct
+allocation is very different. Leaving it as `unknown` is flagged in the output
+for exactly this reason.
+
 ## Things worth knowing before you trust the output
 
 **SpaceX is not directly purchasable.** It is a private company. The

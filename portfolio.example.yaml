@@ -1,76 +1,65 @@
 # Copy to portfolio.yaml and replace with your real numbers.
 # Prices are snapshots -- update them before you rely on any output.
 #
-# sleeve: groups positions for allocation targets. Anything you invent here
-#         can be used as a research theme.
-# account: "taxable" | "ira" | "401k" | "roth". Only taxable positions are
-#          considered for funding cash needs, and only taxable sales are taxed.
-# lots:   optional. Without them, tax estimates are zero and sell ordering
-#         cannot prefer loss lots.
+# The shape below is a ~$80k all-taxable account with a $25k near-term cash
+# need and a large untouched 401k alongside it. Positions are placeholders.
 
-cash: 12000
+cash: 3000
 
-marginal_tax_rate: 0.32   # ordinary income rate, for short-term gains
+marginal_tax_rate: 0.24   # ordinary income rate, applied to short-term gains
 ltcg_rate: 0.15           # long-term capital gains rate
 
 positions:
   - ticker: VOO
-    shares: 210
+    shares: 42
     price: 545.00
     account: taxable
     sleeve: core
     lots:
-      - shares: 120
-        cost_basis_per_share: 395.00
-        acquired: 2023-02-14
-      - shares: 90
-        cost_basis_per_share: 502.00
-        acquired: 2025-11-03
+      - shares: 42
+        cost_basis_per_share: 470.00
+        acquired: 2024-08-19
 
   - ticker: TSLA
-    shares: 340
+    shares: 75
     price: 318.00
     account: taxable
     sleeve: tesla
     lots:
-      - shares: 200
-        cost_basis_per_share: 182.00
-        acquired: 2023-06-01
-      - shares: 140
-        cost_basis_per_share: 341.00
-        acquired: 2026-02-20
+      - shares: 45
+        cost_basis_per_share: 205.00
+        acquired: 2023-09-11
+      - shares: 30
+        cost_basis_per_share: 344.00
+        acquired: 2026-03-02
 
   - ticker: NVDA
-    shares: 95
+    shares: 60
     price: 176.00
     account: taxable
     sleeve: semiconductor
     lots:
-      - shares: 95
-        cost_basis_per_share: 118.00
-        acquired: 2024-09-12
-
-  - ticker: SMH
-    shares: 40
-    price: 288.00
-    account: ira
-    sleeve: semiconductor
+      - shares: 60
+        cost_basis_per_share: 121.00
+        acquired: 2024-11-05
 
   - ticker: IONQ
-    shares: 900
+    shares: 260
     price: 42.00
     account: taxable
     sleeve: quantum
     lots:
-      - shares: 900
-        cost_basis_per_share: 51.00
+      - shares: 260
+        cost_basis_per_share: 53.00
         acquired: 2026-01-15
 
-  - ticker: XLU
-    shares: 150
-    price: 88.00
-    account: ira
-    sleeve: utilities
+# Accounts that count toward household risk but are never traded by this tool.
+# Fill in `composition` -- it decides whether the managed account is
+# diversifying the household or concentrating it further.
+external_accounts:
+  - label: 401k (not being touched)
+    value: 400000
+    composition: unknown
 
 # Known future liquidity requirements. Anything inside 12 months is carved out
 # of the portfolio before growth targets are computed.
@@ -80,13 +69,18 @@ cash_needs:
     label: October cash requirement
 
 # Target weights for the INVESTABLE remainder (after cash needs are reserved).
-# These must sum to 1.0. The profile below is growth-tilted with a large index
-# core -- adjust to taste, but keep the core meaningful.
+# Must sum to 1.0.
+#
+# Note the small `core` weight. That is deliberate for this profile: with a
+# large 401k presumably already holding broad index exposure, buying more of
+# the same in a small taxable account duplicates the core and spends the risk
+# budget where it was not wanted. If the 401k turns out NOT to be diversified,
+# raise `core` substantially before anything else.
 targets:
-  core: 0.45           # VOO or equivalent broad index
-  semiconductor: 0.15
-  utilities: 0.10
-  tesla: 0.08
-  quantum: 0.07
+  core: 0.15
+  semiconductor: 0.28
+  quantum: 0.15
+  utilities: 0.14
+  tesla: 0.13
   spacex_proxy: 0.05   # see README -- SpaceX is private; read before funding
-  cash: 0.10           # dry powder beyond the October reserve
+  cash: 0.10           # dry powder, separate from the October reserve

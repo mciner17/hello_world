@@ -194,6 +194,28 @@ def rebalance(portfolio: Portfolio) -> list[Trade]:
     return trades
 
 
+def household_view(portfolio: Portfolio) -> dict:
+    """Risk capital as a share of everything, including untouched accounts.
+
+    The managed portfolio's risk budget is a household question. A 5% position
+    in a small taxable account can be a rounding error at household level --
+    which is an argument for taking *more* risk there, not less, provided the
+    outside account is genuinely diversified.
+    """
+    household = portfolio.household_value
+    reserve = reserved_for_cash_needs(portfolio)
+    investable = max(0.0, portfolio.total_value - reserve)
+
+    return {
+        "household_value": household,
+        "managed_value": portfolio.total_value,
+        "external_value": portfolio.external_value,
+        "managed_share": portfolio.total_value / household if household else 0.0,
+        "investable": investable,
+        "investable_share_of_household": investable / household if household else 0.0,
+    }
+
+
 def summarize(portfolio: Portfolio) -> str:
     """Human-readable snapshot; also fed to the research agent as context."""
     total = portfolio.total_value

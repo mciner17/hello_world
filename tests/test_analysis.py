@@ -154,3 +154,28 @@ def test_cash_beyond_the_reserve_still_counts_as_investable():
     cash_trade = next(t for t in trades if t.ticker == "<cash>")
     assert cash_trade.action == "buy"
     assert cash_trade.dollars == pytest.approx(19_000 - 15_000)
+
+
+def test_household_view_sizes_risk_against_outside_accounts():
+    """A big untouched 401k reframes what the managed account's risk means."""
+    from portfolio_agent.models import ExternalAccount
+
+    p = make_portfolio(
+        cash=3_000.0,
+        cash_needs=[CashNeed(25_000, TODAY + dt.timedelta(days=80))],
+        external_accounts=[ExternalAccount("401k", 400_000.0, "target-date fund")],
+    )
+    view = analysis.household_view(p)
+
+    assert view["household_value"] == pytest.approx(483_000)
+    assert view["managed_value"] == pytest.approx(83_000)
+    # Risk capital is 83k - 25k reserved = 58k, which is ~12% of the household
+    # even though it is 70% of the account being managed.
+    assert view["investable"] == pytest.approx(58_000)
+    assert view["investable_share_of_household"] == pytest.approx(0.120, abs=0.001)
+
+
+def test_household_view_is_inert_without_external_accounts():
+    view = analysis.household_view(make_portfolio())
+    assert view["external_value"] == 0
+    assert view["managed_share"] == pytest.approx(1.0)

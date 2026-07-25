@@ -90,6 +90,21 @@ class CashNeed:
 
 
 @dataclass
+class ExternalAccount:
+    """An account that counts toward household risk but is never traded here.
+
+    A 401k you are not touching still determines how much risk the managed
+    portfolio can responsibly take. Ignoring it produces a portfolio that
+    looks aggressive in isolation and may be conservative in context -- or,
+    if the outside account is concentrated, the reverse.
+    """
+
+    label: str
+    value: float
+    composition: str = "unknown"
+
+
+@dataclass
 class Portfolio:
     positions: list[Position]
     cash: float = 0.0
@@ -97,6 +112,15 @@ class Portfolio:
     targets: dict[str, float] = field(default_factory=dict)
     marginal_tax_rate: float = 0.24
     ltcg_rate: float = 0.15
+    external_accounts: list[ExternalAccount] = field(default_factory=list)
+
+    @property
+    def external_value(self) -> float:
+        return sum(a.value for a in self.external_accounts)
+
+    @property
+    def household_value(self) -> float:
+        return self.total_value + self.external_value
 
     @property
     def invested_value(self) -> float:
@@ -158,6 +182,15 @@ def load_portfolio(path: str | Path) -> Portfolio:
         for n in raw.get("cash_needs", [])
     ]
 
+    external = [
+        ExternalAccount(
+            label=a["label"],
+            value=float(a["value"]),
+            composition=a.get("composition", "unknown"),
+        )
+        for a in raw.get("external_accounts", [])
+    ]
+
     return Portfolio(
         positions=positions,
         cash=float(raw.get("cash", 0.0)),
@@ -165,4 +198,5 @@ def load_portfolio(path: str | Path) -> Portfolio:
         targets=dict(raw.get("targets", {})),
         marginal_tax_rate=float(raw.get("marginal_tax_rate", 0.24)),
         ltcg_rate=float(raw.get("ltcg_rate", 0.15)),
+        external_accounts=external,
     )

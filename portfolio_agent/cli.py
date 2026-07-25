@@ -28,6 +28,23 @@ def _constraints_text(portfolio: Portfolio) -> str:
             f"{need.date.isoformat()} ({plan.months_away:.1f} months away) for "
             f"'{need.label}'. Currently ${plan.already_liquid:,.0f} is liquid."
         )
+
+    if portfolio.external_accounts:
+        view = analysis.household_view(portfolio)
+        lines.append(
+            f"- Household context: ${view['external_value']:,.0f} sits in accounts not "
+            f"managed here and not being traded. The portfolio you are advising on is "
+            f"${view['managed_value']:,.0f}, i.e. {view['managed_share']:.0%} of the "
+            f"household. Size recommendations against the household, not the sub-account."
+        )
+        for account in portfolio.external_accounts:
+            lines.append(
+                f"  - {account.label}: ${account.value:,.0f}, holdings: {account.composition}"
+            )
+        lines.append(
+            "  - If an outside account's composition is unknown or overlaps the themes "
+            "below, say so explicitly and explain what it changes before recommending sizes."
+        )
     return "\n".join(lines)
 
 
@@ -42,6 +59,26 @@ def cmd_status(args) -> int:
             f"\nReserved for near-term cash needs: ${reserve:,.0f}"
             f"\nInvestable for growth: ${investable:,.0f}"
         )
+
+    if portfolio.external_accounts:
+        view = analysis.household_view(portfolio)
+        print("\nHousehold context (accounts not managed here):")
+        for account in portfolio.external_accounts:
+            print(
+                f"  {account.label:<24} ${account.value:>12,.0f}   [{account.composition}]"
+            )
+        print(
+            f"\n  Household total:      ${view['household_value']:,.0f}"
+            f"\n  Managed here:         ${view['managed_value']:,.0f} "
+            f"({view['managed_share']:.1%} of household)"
+            f"\n  Risk capital:         ${view['investable']:,.0f} "
+            f"({view['investable_share_of_household']:.1%} of household)"
+        )
+        if any(a.composition == "unknown" for a in portfolio.external_accounts):
+            print(
+                "\n  NOTE: an outside account has composition 'unknown'. Its holdings"
+                "\n  decide whether this portfolio is diversifying or doubling down."
+            )
     return 0
 
 
