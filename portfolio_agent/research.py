@@ -33,6 +33,11 @@ write it. This includes, and is not limited to:
 
 - Whether a company is public or private, and under what ticker.
 - Prices, market caps, multiples, and 52-week ranges.
+- The SHAPE of a price history, not just its endpoints. Never infer that a
+  stock rose or fell monotonically between two dates; a name below an earlier
+  peak has holders at a loss who bought before holders at a gain. Any claim
+  that depends on the path -- lot selection, average basis, who is underwater
+  -- requires the actual history, not two points and a line drawn between them.
 - Whether a company has IPO'd, been acquired, merged, split, renamed, delisted,
   or moved exchanges.
 - Index membership, lockup schedules, and share-count changes.

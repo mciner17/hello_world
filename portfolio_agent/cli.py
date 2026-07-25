@@ -122,10 +122,12 @@ def cmd_liquidity(args) -> int:
 
     if any(p.account == "taxable" for p in portfolio.positions):
         print(
-            "\nAt execution: set the sale to SPECIFIC LOT identification and pick the"
-            "\nhighest-cost-basis lots. Most brokers default to FIFO, which sells your"
-            "\noldest shares -- usually the largest embedded gain, and the worst choice."
-            "\nThe lot picker shows basis per lot, so this needs no advance research."
+            "\nAt execution: set the sale to SPECIFIC LOT identification and choose lots"
+            "\nby the basis the broker shows, not by age. Vest or purchase date does not"
+            "\ntell you which lot is cheapest to sell -- that assumes the price only rose,"
+            "\nand a stock below an earlier peak will have older lots sitting at a LOSS."
+            "\nSell losses first (they offset gains elsewhere), then the smallest gains."
+            "\nBroker defaults are usually FIFO, which ignores all of this."
         )
     return 0
 
