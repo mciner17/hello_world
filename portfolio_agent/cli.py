@@ -119,6 +119,14 @@ def cmd_liquidity(args) -> int:
 
         if plan.shortfall > 0.01:
             print(f"\nWARNING: ${plan.shortfall:,.0f} of this need is still unfunded.")
+
+    if any(p.account == "taxable" for p in portfolio.positions):
+        print(
+            "\nAt execution: set the sale to SPECIFIC LOT identification and pick the"
+            "\nhighest-cost-basis lots. Most brokers default to FIFO, which sells your"
+            "\noldest shares -- usually the largest embedded gain, and the worst choice."
+            "\nThe lot picker shows basis per lot, so this needs no advance research."
+        )
     return 0
 
 
