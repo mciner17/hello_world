@@ -197,6 +197,52 @@ def cmd_research(args) -> int:
     return 0
 
 
+def cmd_sources(args) -> int:
+    from . import monitor
+
+    sources = monitor.load_sources(args.sources)
+    print(f"{len(sources)} sources, ordered by how much weight a claim deserves:")
+    print(monitor.format_catalog(sources))
+    print(
+        "\nTiers are ranked by verifiability, not reputation. Auditable track"
+        "\nrecords for market pundits mostly do not exist -- survivorship bias"
+        "\nalone overstates median active fund alpha by ~0.60%/yr."
+    )
+    return 0
+
+
+def cmd_brief(args) -> int:
+    from . import monitor, research
+
+    portfolio = load_portfolio(args.config)
+    sources = monitor.load_sources(args.sources)
+    themes = [t for t in portfolio.targets if t not in ("cash",)]
+
+    prompt = monitor.brief_prompt(
+        checkpoint=args.checkpoint,
+        portfolio_summary=analysis.summarize(portfolio),
+        constraints=_constraints_text(portfolio),
+        sources=sources,
+        focus=monitor.theme_focus(args.sources),
+        themes=themes,
+    )
+
+    result = research.run_research(prompt, effort=args.effort, max_tokens=8000)
+    if result.refused:
+        print("Brief request was declined.", file=sys.stderr)
+        return 1
+
+    stamp = dt.datetime.now(dt.timezone.utc)
+    outdir = Path(args.out)
+    outdir.mkdir(parents=True, exist_ok=True)
+    path = outdir / f"{stamp:%Y-%m-%d}-{args.checkpoint}.md"
+    path.write_text(f"# {args.checkpoint} brief -- {stamp:%Y-%m-%d %H:%M UTC}\n\n{result.markdown}")
+
+    print(result.markdown)
+    print(f"\n[saved to {path}; {result.searches} searches]", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="portfolio-agent",
@@ -235,7 +281,24 @@ def main(argv: list[str] | None = None) -> int:
     )
     research_parser.set_defaults(func=cmd_research)
 
+    sources_parser = sub.add_parser("sources", help="print the source catalog with biases")
+    sources_parser.add_argument("--sources", default="sources.yaml")
+    sources_parser.set_defaults(func=cmd_sources)
+
+    brief_parser = sub.add_parser("brief", help="scheduled market check against the catalog")
+    brief_parser.add_argument(
+        "checkpoint", choices=["preopen", "midday", "preclose"], help="which scheduled window"
+    )
+    brief_parser.add_argument("--sources", default="sources.yaml")
+    brief_parser.add_argument("--out", default="briefs", help="output directory")
+    brief_parser.add_argument(
+        "--effort", default="medium", choices=["low", "medium", "high", "xhigh", "max"]
+    )
+    brief_parser.set_defaults(func=cmd_brief)
+
     args = parser.parse_args(argv)
+    if args.command == "sources":
+        return args.func(args)
     if not Path(args.config).exists():
         parser.error(
             f"config not found: {args.config}\n"

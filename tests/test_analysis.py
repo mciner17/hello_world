@@ -207,3 +207,45 @@ def test_real_config_does_not_warn(tmp_path, capsys):
     )
     load_portfolio(config)
     assert capsys.readouterr().err == ""
+
+
+def test_source_catalog_loads_with_bias_recorded():
+    """Every catalogued source must declare a bias -- silence is not neutrality."""
+    from portfolio_agent import monitor
+
+    sources = monitor.load_sources("sources.yaml")
+    assert len(sources) >= 15
+    assert all(s.bias for s in sources), [s.name for s in sources if not s.bias]
+    assert all(s.why for s in sources)
+
+    primary = [s for s in sources if s.tier == "primary"]
+    assert primary and all(s.weight == 1.0 for s in primary)
+
+
+def test_theme_focus_only_references_real_sources():
+    from portfolio_agent import monitor
+
+    names = {s.name for s in monitor.load_sources("sources.yaml")}
+    for theme, listed in monitor.theme_focus("sources.yaml").items():
+        unknown = set(listed) - names
+        assert not unknown, f"{theme} references unknown sources: {unknown}"
+
+
+def test_brief_prompt_is_timestamped_and_scoped():
+    from portfolio_agent import monitor
+
+    sources = monitor.load_sources("sources.yaml")
+    prompt = monitor.brief_prompt(
+        checkpoint="preopen",
+        portfolio_summary="<PORTFOLIO>",
+        constraints="<CONSTRAINTS>",
+        sources=sources,
+        focus=monitor.theme_focus("sources.yaml"),
+        themes=["semiconductor"],
+    )
+    assert "UTC" in prompt
+    assert "Pre-open" in prompt
+    assert "<PORTFOLIO>" in prompt
+    # Focus should narrow the catalog, not dump all 17 sources every time.
+    assert "Stratechery" not in prompt
+    assert "SemiAnalysis" in prompt

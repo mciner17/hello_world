@@ -36,6 +36,38 @@ python -m portfolio_agent.cli research    # deep research + synthesized plan
 of web searches; a full run takes several minutes and costs real tokens. Use
 `--effort medium` for a cheaper pass, or `--themes quantum` to scope it.
 
+## Source catalog and scheduled briefs
+
+`sources.yaml` catalogs where market information comes from, in tiers ordered by
+**verifiability, not reputation**:
+
+| Tier | Weight | Use |
+|---|---|---|
+| `primary` | 1.0 | Filings, exchange notices, IR pages. Statable as fact. |
+| `deep` | 0.8 | Analytical research. Where non-consensus calls originate. |
+| `contrarian` | 0.7 | Short sellers, skeptics. The other side of the trade. |
+| `realtime` | 0.6 | Wires and squawk. Fast, not authoritative. |
+| `positioning` | 0.5 | 13F, Form 4, analyst rankings. What money is doing. |
+
+Every source declares a `bias`, and a test enforces it — a source with no
+recorded bias is one nobody has audited, which is worse than one with a
+documented tilt. The catalog is explicit that auditable track records for market
+pundits largely do not exist: survivorship bias alone overstates median active
+fund alpha by ~0.60%/yr, backfill bias lets managers publish only after a good
+run, and past winners routinely fail to repeat.
+
+```bash
+python -m portfolio_agent.cli sources           # print the catalog with biases
+python -m portfolio_agent.cli brief preopen     # scheduled check
+python -m portfolio_agent.cli brief midday
+python -m portfolio_agent.cli brief preclose
+```
+
+Briefs are scoped to the themes in your config via `theme_focus`, so a
+semiconductor check does not sweep all 17 sources. They are capped at ~400 words
+and instructed that "no thesis change" is the correct output most of the time —
+a brief that always recommends a trade is a brief that loses money.
+
 ## How the config works
 
 `sleeve` groups positions for allocation targets, and doubles as the default
