@@ -1,0 +1,81 @@
+# Investment Research Agent
+
+A deep-research agent for building and rebalancing an investment portfolio.
+
+It has two halves that are deliberately kept apart:
+
+- **Deterministic math** (`models.py`, `analysis.py`) — allocation, concentration,
+  tax-lot selection, liquidity planning, rebalancing. No LLM involved. The
+  numbers are reproducible and covered by tests.
+- **Deep research** (`research.py`) — Claude Opus 5 with live web search and
+  fetch, producing sourced reports on themes you name, then synthesizing them
+  into a plan against your actual positions and constraints.
+
+The split matters. Arithmetic should not be probabilistic, and the model should
+not be asked to remember prices it cannot verify.
+
+## Setup
+
+```bash
+pip install -r requirements.txt
+export ANTHROPIC_API_KEY=sk-ant-...      # or run `ant auth login`
+cp portfolio.example.yaml portfolio.yaml # then edit in your real positions
+```
+
+## Commands
+
+```bash
+python -m portfolio_agent.cli status      # allocation, concentration, drift
+python -m portfolio_agent.cli liquidity   # how to fund upcoming cash needs
+python -m portfolio_agent.cli rebalance   # trades to reach target weights
+python -m portfolio_agent.cli research    # deep research + synthesized plan
+```
+
+`research` writes one markdown report per theme into `research/` plus a
+`PLAN.md` synthesis. It runs at `xhigh` effort by default and will make dozens
+of web searches; a full run takes several minutes and costs real tokens. Use
+`--effort medium` for a cheaper pass, or `--themes quantum` to scope it.
+
+## How the config works
+
+`sleeve` groups positions for allocation targets, and doubles as the default
+list of research themes. `targets` are weights on the **investable remainder**
+— that is, total value minus anything reserved for a cash need due within 12
+months. This is the one piece of opinionated behavior in the math, and it is
+there because a near-term obligation is not risk capital.
+
+`account` matters: only `taxable` positions are considered for funding cash
+needs, and only taxable sales generate a tax estimate. Retirement accounts are
+never proposed as a funding source.
+
+`lots` are optional but worth entering. Without them the agent cannot prefer
+loss lots when selling, and every tax estimate is zero — which will make sales
+look cheaper than they are.
+
+## Things worth knowing before you trust the output
+
+**SpaceX is not directly purchasable.** It is a private company. The
+`spacex_proxy` sleeve in the example config is a placeholder, not a
+recommendation. The available vehicles all have significant costs that the
+headline exposure hides — closed-end funds that can trade at large premiums to
+NAV, venture funds with lockups and high expense ratios, and pre-IPO secondary
+platforms with accreditation requirements. In most of these, SpaceX is a
+minority of the holdings, so you are buying a basket and paying a fee for the
+part you wanted. The research agent is instructed to price these explicitly
+rather than treat the sleeve as fillable. Read that section before funding it.
+
+**Tax estimates are approximations.** They apply a flat rate to realized gains
+by lot. They do not model wash sales, net investment income tax, state tax,
+AMT, or the interaction with your other income. Treat the output as a way to
+compare two sale plans against each other, not as a number to put on a return.
+
+**Prices are whatever you last typed into the config.** Nothing in this tool
+fetches quotes. Stale prices produce confidently wrong allocations.
+
+**The research agent searches the web and can still be wrong.** It is
+instructed to cite sources and dates for every figure and to label speculation
+as speculation. Verify anything you are about to act on, particularly numbers
+that drive a large trade.
+
+This is a research and modeling tool, not financial advice, and none of its
+authors are your adviser.

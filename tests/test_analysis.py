@@ -1,0 +1,156 @@
+"""Tests for the deterministic portfolio math."""
+
+from __future__ import annotations
+
+import datetime as dt
+
+import pytest
+
+from portfolio_agent import analysis
+from portfolio_agent.models import CashNeed, Lot, Portfolio, Position
+
+TODAY = dt.date.today()
+
+
+def make_portfolio(**overrides) -> Portfolio:
+    positions = [
+        Position(
+            ticker="VOO",
+            shares=100,
+            price=500.0,
+            sleeve="core",
+            lots=[Lot(100, 400.0, TODAY - dt.timedelta(days=800))],
+        ),
+        Position(
+            ticker="TSLA",
+            shares=100,
+            price=300.0,
+            sleeve="tesla",
+            lots=[Lot(100, 350.0, TODAY - dt.timedelta(days=100))],
+        ),
+    ]
+    kwargs = {
+        "positions": positions,
+        "cash": 10_000.0,
+        "targets": {"core": 0.7, "tesla": 0.3},
+        "marginal_tax_rate": 0.30,
+        "ltcg_rate": 0.15,
+    }
+    kwargs.update(overrides)
+    return Portfolio(**kwargs)
+
+
+def test_total_value_includes_cash():
+    p = make_portfolio()
+    assert p.invested_value == pytest.approx(80_000)
+    assert p.total_value == pytest.approx(90_000)
+
+
+def test_unrealized_gain_signs():
+    p = make_portfolio()
+    assert p.position("VOO").unrealized_gain == pytest.approx(10_000)
+    assert p.position("TSLA").unrealized_gain == pytest.approx(-5_000)
+
+
+def test_concentration_identifies_largest_position():
+    conc = analysis.concentration(make_portfolio())
+    assert conc["top_ticker"] == "VOO"
+    assert conc["top_weight"] == pytest.approx(50_000 / 80_000)
+    # HHI = 0.625^2 + 0.375^2 = 0.53125, so these two positions behave like
+    # ~1.88 equally-weighted ones rather than a true 2.
+    assert conc["hhi"] == pytest.approx(0.53125)
+    assert conc["effective_positions"] == pytest.approx(1.88, abs=0.01)
+
+
+def test_loss_lots_are_sold_before_gain_lots():
+    """Selling the losing lot first is the point -- it defers tax."""
+    position = Position(
+        ticker="X",
+        shares=200,
+        price=100.0,
+        lots=[
+            Lot(100, 50.0, TODAY - dt.timedelta(days=800)),   # long-term gain
+            Lot(100, 150.0, TODAY - dt.timedelta(days=30)),   # short-term loss
+        ],
+    )
+    chosen = position.lots_covering(100)
+    assert len(chosen) == 1
+    assert chosen[0].cost_basis_per_share == 150.0  # the loss lot
+
+
+def test_cash_covers_need_without_sales():
+    p = make_portfolio(cash=30_000.0)
+    need = CashNeed(25_000, TODAY + dt.timedelta(days=80), "October")
+    plan = analysis.plan_liquidity(p, need)
+    assert plan.sales == []
+    assert plan.is_funded
+
+
+def test_shortfall_triggers_sales_and_estimates_tax():
+    p = make_portfolio(cash=5_000.0)
+    need = CashNeed(25_000, TODAY + dt.timedelta(days=80), "October")
+    plan = analysis.plan_liquidity(p, need)
+
+    assert plan.is_funded
+    assert sum(s.dollars for s in plan.sales) == pytest.approx(20_000)
+    # TSLA is held at a loss, so selling it should not create a tax bill.
+    assert plan.est_total_tax <= 0
+
+
+def test_retirement_accounts_are_never_sold_for_cash_needs():
+    p = make_portfolio(
+        positions=[
+            Position("VTI", 100, 300.0, account="ira", sleeve="core"),
+            Position("VOO", 10, 500.0, account="taxable", sleeve="core"),
+        ],
+        cash=0.0,
+    )
+    plan = analysis.plan_liquidity(p, CashNeed(25_000, TODAY + dt.timedelta(days=80)))
+    assert all(s.ticker != "VTI" for s in plan.sales)
+    # Taxable holdings alone cannot cover it; the gap must be reported, not hidden.
+    assert plan.shortfall > 0
+
+
+def test_near_term_need_is_excluded_from_investable_base():
+    """A cash need inside the horizon must not be allocated to growth sleeves."""
+    p = make_portfolio(cash_needs=[CashNeed(25_000, TODAY + dt.timedelta(days=80))])
+    assert analysis.reserved_for_cash_needs(p) == pytest.approx(25_000)
+
+    trades = analysis.rebalance(p)
+    # Investable is 90k - 25k = 65k, so the core target is 0.7 * 65k = 45.5k,
+    # not 0.7 * 90k = 63k.
+    core = next(t for t in trades if t.ticker == "VOO")
+    assert core.action == "sell"
+    assert core.dollars == pytest.approx(50_000 - 45_500)
+
+
+def test_distant_need_is_not_reserved():
+    p = make_portfolio(cash_needs=[CashNeed(25_000, TODAY + dt.timedelta(days=800))])
+    assert analysis.reserved_for_cash_needs(p) == pytest.approx(0)
+
+
+def test_rebalance_respects_no_trade_band():
+    """Trivial drift should not generate churn."""
+    p = make_portfolio(cash=0.0, targets={"core": 0.625, "tesla": 0.375})
+    assert analysis.rebalance(p) == []
+
+
+def test_summarize_runs_without_lots():
+    p = make_portfolio(positions=[Position("VOO", 10, 500.0, sleeve="core")])
+    assert "VOO" in analysis.summarize(p)
+
+
+def test_cash_beyond_the_reserve_still_counts_as_investable():
+    """Reserving for a cash need must not delete the surplus cash sleeve."""
+    p = make_portfolio(
+        cash=40_000.0,
+        targets={"core": 0.6, "tesla": 0.2, "cash": 0.2},
+        cash_needs=[CashNeed(25_000, TODAY + dt.timedelta(days=80))],
+    )
+    # Total 120k, reserve 25k, investable 95k. Cash sleeve currently holds
+    # 40k - 25k = 15k, and targets 0.2 * 95k = 19k -- a small top-up, not a
+    # from-zero purchase of the full 19k.
+    trades = analysis.rebalance(p)
+    cash_trade = next(t for t in trades if t.ticker == "<cash>")
+    assert cash_trade.action == "buy"
+    assert cash_trade.dollars == pytest.approx(19_000 - 15_000)
