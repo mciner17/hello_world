@@ -197,6 +197,27 @@ def cmd_research(args) -> int:
     return 0
 
 
+def cmd_watch(args) -> int:
+    from . import alerts as alerts_mod
+
+    portfolio = load_portfolio(args.config)
+    watch = alerts_mod.load_watch(args.config)
+    triggered = alerts_mod.evaluate(portfolio, watch)
+
+    if not triggered:
+        print("No alerts. Nothing in the watchlist is triggered today.")
+        return 0
+
+    print(f"{len(triggered)} alert(s):\n")
+    for alert in triggered:
+        print(f"  {alert}")
+
+    critical = sum(1 for a in triggered if a.severity == "critical")
+    if critical:
+        print(f"\n{critical} critical. These need a decision, not a note.")
+    return 0
+
+
 def cmd_sources(args) -> int:
     from . import monitor
 
@@ -212,11 +233,19 @@ def cmd_sources(args) -> int:
 
 
 def cmd_brief(args) -> int:
+    from . import alerts as alerts_mod
     from . import monitor, research
 
     portfolio = load_portfolio(args.config)
     sources = monitor.load_sources(args.sources)
     themes = [t for t in portfolio.targets if t not in ("cash",)]
+
+    watch = alerts_mod.load_watch(args.config)
+    triggered = alerts_mod.evaluate(portfolio, watch)
+    if triggered:
+        print("Deterministic alerts before searching:", file=sys.stderr)
+        for alert in triggered:
+            print(f"  {alert}", file=sys.stderr)
 
     prompt = monitor.brief_prompt(
         checkpoint=args.checkpoint,
@@ -225,6 +254,7 @@ def cmd_brief(args) -> int:
         sources=sources,
         focus=monitor.theme_focus(args.sources),
         themes=themes,
+        watchlist=alerts_mod.watchlist_prompt_section(portfolio, triggered),
     )
 
     result = research.run_research(prompt, effort=args.effort, max_tokens=8000)
@@ -280,6 +310,10 @@ def main(argv: list[str] | None = None) -> int:
         "--no-synthesis", action="store_true", help="write theme reports only"
     )
     research_parser.set_defaults(func=cmd_research)
+
+    sub.add_parser("watch", help="evaluate event-driven watch rules").set_defaults(
+        func=cmd_watch
+    )
 
     sources_parser = sub.add_parser("sources", help="print the source catalog with biases")
     sources_parser.add_argument("--sources", default="sources.yaml")

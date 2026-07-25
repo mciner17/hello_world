@@ -78,6 +78,7 @@ def brief_prompt(
     sources: list[Source],
     focus: dict[str, list[str]],
     themes: list[str],
+    watchlist: str = "",
 ) -> str:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     window = CHECKPOINTS.get(checkpoint, checkpoint)
@@ -105,6 +106,10 @@ Constraints:
 {constraints}
 
 Themes being tracked: {', '.join(themes)}
+
+## Watchlist
+
+{watchlist or "No watch rules configured."}
 
 ## Source catalog
 

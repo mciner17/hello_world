@@ -58,10 +58,31 @@ run, and past winners routinely fail to repeat.
 
 ```bash
 python -m portfolio_agent.cli sources           # print the catalog with biases
+python -m portfolio_agent.cli watch             # evaluate event-driven rules
 python -m portfolio_agent.cli brief preopen     # scheduled check
-python -m portfolio_agent.cli brief midday
-python -m portfolio_agent.cli brief preclose
 ```
+
+## Event-driven alerts
+
+The `watch:` block in your config drives `cli watch`, and its output is folded
+into every brief before any searching happens. It is deliberately deterministic:
+knowing that a lockup tranche lands on a date, or that a position has grown past
+its cap, needs a calendar and arithmetic, not a language model. That keeps the
+search budget for things that genuinely need looking up.
+
+Rules available:
+
+- `calendar` — dated events (unlocks, earnings, index changes) with `lead_days`
+  thresholds, so they surface at 30/14/7/1 days rather than the morning of.
+- `max_position_weight` — flags any position above that share of invested assets.
+- per-ticker `below` / `above` levels — prompts to verify a crossing. Config
+  prices are only as fresh as your last edit, so these say "verify live" rather
+  than asserting a cross happened.
+
+The rule worth understanding is **collision**: any dated event landing within 45
+days of a cash need escalates to `critical`, because it can move the price of
+the exact asset you were planning to sell to raise that cash. That is the
+failure mode a calendar catches and a daily news sweep does not.
 
 Briefs are scoped to the themes in your config via `theme_focus`, so a
 semiconductor check does not sweep all 17 sources. They are capped at ~400 words

@@ -69,6 +69,32 @@ cash_needs:
     date: 2026-10-15
     label: October cash requirement
 
+# Event-driven watch rules, evaluated by `cli watch` and folded into every
+# scheduled brief. These are deterministic -- a dated event does not need a
+# language model to be seen coming.
+watch:
+  default_move_pct: 5.0
+  lead_days: [30, 14, 7, 1]
+  max_position_weight: 0.25   # flag any position above this share of invested assets
+
+  calendar:
+    # Verify these against primary sources before trusting them; they are
+    # written down here so they cannot be forgotten, not so they can be assumed.
+    - date: 2026-08-06
+      label: SPCX first major insider unlock (~911.5M shares)
+      tickers: [SPCX]
+      severity: critical
+    - date: 2026-12-08
+      label: SPCX 180-day lockup fully expires
+      tickers: [SPCX]
+      severity: warn
+
+  rules:
+    - ticker: SPCX
+      move_pct: 8.0
+      below: 110.85       # 52-week low as observed 2026-07-25
+      above: 135.00       # IPO price
+
 # Target weights for the INVESTABLE remainder (after cash needs are reserved).
 # Must sum to 1.0.
 #

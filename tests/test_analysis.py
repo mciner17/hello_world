@@ -249,3 +249,100 @@ def test_brief_prompt_is_timestamped_and_scoped():
     # Focus should narrow the catalog, not dump all 17 sources every time.
     assert "Stratechery" not in prompt
     assert "SemiAnalysis" in prompt
+
+
+def _watch_config(tmp_path, body: str):
+    from portfolio_agent.alerts import load_watch
+
+    path = tmp_path / "w.yaml"
+    path.write_text(body)
+    return load_watch(path)
+
+
+def test_calendar_event_fires_only_inside_lead_window(tmp_path):
+    from portfolio_agent import alerts
+
+    p = make_portfolio(positions=[Position("SPCX", 100, 115.0, sleeve="spacex")])
+    watch = _watch_config(
+        tmp_path,
+        "watch:\n"
+        "  lead_days: [30, 7]\n"
+        "  calendar:\n"
+        "    - date: 2026-08-06\n"
+        "      label: unlock\n"
+        "      tickers: [SPCX]\n",
+    )
+    # 60 days out: silent. 20 days out: fires.
+    far = alerts.evaluate(p, watch, asof=dt.date(2026, 6, 7))
+    near = alerts.evaluate(p, watch, asof=dt.date(2026, 7, 17))
+    assert not [a for a in far if a.kind == "calendar"]
+    assert [a for a in near if a.kind == "calendar"]
+
+
+def test_calendar_event_near_cash_need_escalates_to_collision(tmp_path):
+    """An unlock landing beside the date cash must be raised is the whole point."""
+    from portfolio_agent import alerts
+
+    p = make_portfolio(
+        positions=[Position("SPCX", 100, 115.0, sleeve="spacex")],
+        cash_needs=[CashNeed(25_000, dt.date(2026, 10, 15), "October")],
+    )
+    watch = _watch_config(
+        tmp_path,
+        "watch:\n"
+        "  calendar:\n"
+        "    - date: 2026-09-20\n"
+        "      label: unlock tranche\n"
+        "      tickers: [SPCX]\n"
+        "      severity: critical\n",
+    )
+    fired = alerts.evaluate(p, watch, asof=dt.date(2026, 9, 1))
+    collisions = [a for a in fired if a.kind == "collision"]
+    assert collisions
+    assert collisions[0].severity == "critical"
+    assert "do not plan to raise that cash" in collisions[0].message
+
+
+def test_calendar_ignores_tickers_not_held(tmp_path):
+    from portfolio_agent import alerts
+
+    p = make_portfolio(positions=[Position("VOO", 10, 500.0, sleeve="core")])
+    watch = _watch_config(
+        tmp_path,
+        "watch:\n"
+        "  calendar:\n"
+        "    - date: 2026-08-06\n"
+        "      label: unlock\n"
+        "      tickers: [SPCX]\n",
+    )
+    assert not alerts.evaluate(p, watch, asof=dt.date(2026, 8, 1))
+
+
+def test_concentration_cap_flags_oversized_position(tmp_path):
+    from portfolio_agent import alerts
+
+    p = make_portfolio(cash=0.0)  # VOO 62.5%, TSLA 37.5%
+    watch = _watch_config(tmp_path, "watch:\n  max_position_weight: 0.25\n")
+    flagged = {a.ticker for a in alerts.evaluate(p, watch) if a.kind == "concentration"}
+    assert flagged == {"VOO", "TSLA"}
+
+
+def test_unfunded_near_term_need_is_critical(tmp_path):
+    from portfolio_agent import alerts
+
+    p = make_portfolio(
+        cash=5_000.0,
+        cash_needs=[CashNeed(25_000, TODAY + dt.timedelta(days=60), "October")],
+    )
+    watch = _watch_config(tmp_path, "watch: {}\n")
+    liquidity = [a for a in alerts.evaluate(p, watch) if a.kind == "liquidity"]
+    assert liquidity and liquidity[0].severity == "critical"
+    assert "$20,000" in liquidity[0].message
+
+
+def test_watchlist_section_refuses_to_invent_holdings():
+    from portfolio_agent import alerts
+
+    empty = Portfolio(positions=[], cash=0.0)
+    section = alerts.watchlist_prompt_section(empty, [])
+    assert "Do not invent" in section
