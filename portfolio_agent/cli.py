@@ -71,8 +71,10 @@ def cmd_status(args) -> int:
             f"\n  Household total:      ${view['household_value']:,.0f}"
             f"\n  Managed here:         ${view['managed_value']:,.0f} "
             f"({view['managed_share']:.1%} of household)"
-            f"\n  Risk capital:         ${view['investable']:,.0f} "
+            f"\n  After near-term needs:${view['investable']:,.0f} "
             f"({view['investable_share_of_household']:.1%} of household)"
+            "\n    -- this still includes cash and any concentrated holding;"
+            "\n       it is not the amount free to put into new positions."
         )
         if any(a.composition == "unknown" for a in portfolio.external_accounts):
             print(
