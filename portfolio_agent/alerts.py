@@ -142,7 +142,13 @@ def evaluate(
                 )
             )
 
-        # Does this land near money that has to be raised?
+        # Does this land near money that has to be raised? Only asset-specific
+        # events can collide: the warning is "do not raise cash from THIS asset",
+        # which is meaningless for a portfolio-level marker. Without this guard a
+        # calendar entry for the cash need itself collides with itself at 0 days.
+        if not event.tickers:
+            continue
+
         for need in portfolio.cash_needs:
             gap = abs((event.date - need.date).days)
             if gap <= COLLISION_WINDOW_DAYS and event.severity in ("warn", "critical"):

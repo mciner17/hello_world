@@ -303,6 +303,34 @@ def test_calendar_event_near_cash_need_escalates_to_collision(tmp_path):
     assert "do not plan to raise that cash" in collisions[0].message
 
 
+def test_untickered_calendar_event_does_not_collide_with_itself(tmp_path):
+    """A calendar entry marking the cash need is not a catalyst threatening it.
+
+    "Do not raise that cash from this asset" only means something when the event
+    names an asset. Without the guard, a reminder for the October need collides
+    with the October need at zero days and buries the real alerts.
+    """
+    from portfolio_agent import alerts
+
+    p = make_portfolio(
+        positions=[Position("GEN", 100, 30.0, sleeve="employer_stock")],
+        cash_needs=[CashNeed(25_000, dt.date(2026, 10, 15), "October")],
+    )
+    watch = _watch_config(
+        tmp_path,
+        "watch:\n"
+        "  calendar:\n"
+        "    - date: 2026-10-15\n"
+        "      label: October cash requirement due\n"
+        "      severity: critical\n",
+    )
+    fired = alerts.evaluate(p, watch, asof=dt.date(2026, 9, 15))
+
+    assert not [a for a in fired if a.kind == "collision"]
+    # The plain calendar reminder still fires.
+    assert [a for a in fired if a.kind == "calendar"]
+
+
 def test_calendar_ignores_tickers_not_held(tmp_path):
     from portfolio_agent import alerts
 
