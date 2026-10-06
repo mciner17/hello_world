@@ -23,6 +23,11 @@ SEVERITY_ORDER = {"critical": 0, "warn": 1, "info": 2}
 # price of the very asset being sold to raise the cash.
 COLLISION_WINDOW_DAYS = 45
 
+# Price staleness. Three trading days is enough for a single-name thesis to
+# change completely; two weeks is enough for the config to be fiction.
+STALE_PRICE_WARN_DAYS = 3
+STALE_PRICE_CRITICAL_DAYS = 10
+
 
 @dataclass
 class CalendarEvent:
@@ -117,6 +122,49 @@ def evaluate(
     asof = asof or dt.date.today()
     alerts: list[Alert] = []
     held = {p.ticker.upper() for p in portfolio.positions}
+
+    # --- Are the prices even current? --------------------------------------
+    # This engine has NO live price feed. Every move_pct rule below compares
+    # config prices against config prices, so it cannot detect a real move --
+    # it only fires if someone already updated the file. That failure is
+    # silent, which is the dangerous kind: a stale config reports a position
+    # at a price that no longer exists and nothing complains. So complain.
+    age = portfolio.price_age_days(asof)
+    if age is None:
+        alerts.append(
+            Alert(
+                severity="critical",
+                kind="stale_prices",
+                ticker="<config>",
+                message=(
+                    "config has no 'prices_as_of' date -- the vintage of every price "
+                    "in it is unknown, and move_pct rules cannot fire. Re-verify."
+                ),
+            )
+        )
+    elif age > STALE_PRICE_CRITICAL_DAYS:
+        alerts.append(
+            Alert(
+                severity="critical",
+                kind="stale_prices",
+                ticker="<config>",
+                message=(
+                    f"prices are {age}d old (as of {portfolio.prices_as_of.isoformat()}). "
+                    "Re-verify before acting -- move_pct rules cannot fire on a stale file."
+                ),
+            )
+        )
+    elif age > STALE_PRICE_WARN_DAYS:
+        alerts.append(
+            Alert(
+                severity="warn",
+                kind="stale_prices",
+                ticker="<config>",
+                message=(
+                    f"prices are {age}d old (as of {portfolio.prices_as_of.isoformat()})."
+                ),
+            )
+        )
 
     # --- Dated events on held positions ------------------------------------
     for event in watch.calendar:

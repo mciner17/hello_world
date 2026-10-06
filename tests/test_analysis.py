@@ -331,6 +331,46 @@ def test_untickered_calendar_event_does_not_collide_with_itself(tmp_path):
     assert [a for a in fired if a.kind == "calendar"]
 
 
+def test_stale_prices_escalate_by_age(tmp_path):
+    """The engine has no price feed, so silence about age is the real hazard.
+
+    A GEN position sat in the config at $30.65 for eleven days while the real
+    stock fell 28% on an acquisition approach. No move_pct rule could fire,
+    because the rule compares config prices to config prices. The only defense
+    is to say out loud how old the file is.
+    """
+    from portfolio_agent import alerts
+
+    watch = _watch_config(tmp_path, "watch:\n  default_move_pct: 5.0\n")
+    asof = dt.date(2026, 10, 20)
+
+    fresh = make_portfolio(prices_as_of=dt.date(2026, 10, 19))
+    warn = make_portfolio(prices_as_of=dt.date(2026, 10, 14))
+    crit = make_portfolio(prices_as_of=dt.date(2026, 10, 5))
+
+    def staleness(p):
+        return [a for a in alerts.evaluate(p, watch, asof=asof) if a.kind == "stale_prices"]
+
+    assert not staleness(fresh)
+    assert [a.severity for a in staleness(warn)] == ["warn"]
+
+    critical = staleness(crit)
+    assert [a.severity for a in critical] == ["critical"]
+    assert "15d old" in critical[0].message
+
+
+def test_missing_prices_as_of_is_critical(tmp_path):
+    """Unknown vintage is worse than a known-old one -- it cannot be reasoned about."""
+    from portfolio_agent import alerts
+
+    watch = _watch_config(tmp_path, "watch:\n  default_move_pct: 5.0\n")
+    p = make_portfolio(prices_as_of=None)
+
+    fired = [a for a in alerts.evaluate(p, watch) if a.kind == "stale_prices"]
+    assert [a.severity for a in fired] == ["critical"]
+    assert "no 'prices_as_of'" in fired[0].message
+
+
 def test_calendar_ignores_tickers_not_held(tmp_path):
     from portfolio_agent import alerts
 
@@ -343,7 +383,10 @@ def test_calendar_ignores_tickers_not_held(tmp_path):
         "      label: unlock\n"
         "      tickers: [SPCX]\n",
     )
-    assert not alerts.evaluate(p, watch, asof=dt.date(2026, 8, 1))
+    # Scoped to calendar alerts: an unrelated staleness alert fires here too,
+    # because make_portfolio sets no prices_as_of.
+    fired = alerts.evaluate(p, watch, asof=dt.date(2026, 8, 1))
+    assert not [a for a in fired if a.kind == "calendar"]
 
 
 def test_concentration_cap_flags_oversized_position(tmp_path):

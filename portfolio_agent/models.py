@@ -114,6 +114,18 @@ class Portfolio:
     marginal_tax_rate: float = 0.24
     ltcg_rate: float = 0.15
     external_accounts: list[ExternalAccount] = field(default_factory=list)
+    prices_as_of: dt.date | None = None
+
+    def price_age_days(self, asof: dt.date | None = None) -> int | None:
+        """How old the configured prices are, or None if the config never said.
+
+        A None here is worse than a large number: it means nobody recorded when
+        these prices were observed, so every value derived from them is of
+        unknown vintage.
+        """
+        if self.prices_as_of is None:
+            return None
+        return ((asof or dt.date.today()) - self.prices_as_of).days
 
     @property
     def external_value(self) -> float:
@@ -209,4 +221,5 @@ def load_portfolio(path: str | Path) -> Portfolio:
         marginal_tax_rate=float(raw.get("marginal_tax_rate", 0.24)),
         ltcg_rate=float(raw.get("ltcg_rate", 0.15)),
         external_accounts=external,
+        prices_as_of=_parse_date(raw["prices_as_of"]) if raw.get("prices_as_of") else None,
     )
