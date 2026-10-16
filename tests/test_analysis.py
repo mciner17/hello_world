@@ -371,6 +371,40 @@ def test_missing_prices_as_of_is_critical(tmp_path):
     assert "no 'prices_as_of'" in fired[0].message
 
 
+def test_unfunded_cash_need_keeps_firing_after_its_date(tmp_path):
+    """A missed deadline must escalate, not disappear.
+
+    The original guard was `0 <= months <= 12`, so the morning after the date
+    the alert simply stopped. That is the one moment it matters most: either
+    the money came from somewhere the config cannot see, or the need was
+    missed, and both require a person to say which.
+    """
+    from portfolio_agent import alerts
+
+    watch = _watch_config(tmp_path, "watch:\n  default_move_pct: 5.0\n")
+    p = make_portfolio(
+        cash=5_000.0,
+        cash_needs=[CashNeed(25_000, dt.date(2026, 10, 15), "October cash requirement")],
+    )
+
+    before = [a for a in alerts.evaluate(p, watch, asof=dt.date(2026, 10, 14)) if a.kind == "liquidity"]
+    after = [a for a in alerts.evaluate(p, watch, asof=dt.date(2026, 10, 20)) if a.kind == "liquidity"]
+
+    assert [a.severity for a in before] == ["critical"]
+    assert [a.severity for a in after] == ["critical"]
+    assert "came due" in after[0].message
+    assert "$20,000" in after[0].message
+
+    # Funding it silences the alert on both sides of the date.
+    funded = make_portfolio(
+        cash=25_000.0,
+        cash_needs=[CashNeed(25_000, dt.date(2026, 10, 15), "October cash requirement")],
+    )
+    assert not [
+        a for a in alerts.evaluate(funded, watch, asof=dt.date(2026, 10, 20)) if a.kind == "liquidity"
+    ]
+
+
 def test_calendar_ignores_tickers_not_held(tmp_path):
     from portfolio_agent import alerts
 

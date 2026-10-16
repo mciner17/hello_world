@@ -278,8 +278,31 @@ def evaluate(
     # --- Unfunded near-term cash needs --------------------------------------
     for need in portfolio.cash_needs:
         months = need.months_away(asof)
-        if 0 <= months <= 12 and portfolio.cash < need.amount:
-            gap = need.amount - portfolio.cash
+        if portfolio.cash >= need.amount:
+            continue
+
+        gap = need.amount - portfolio.cash
+        if months < 0:
+            # The date came and went and the money was never here. Going quiet
+            # at exactly this moment is the worst possible behavior: either the
+            # need was met from somewhere this config does not know about, or
+            # it was missed. Both demand a human, so keep shouting until the
+            # config is updated to say which.
+            overdue = -int(months * 30.44)
+            alerts.append(
+                Alert(
+                    severity="critical",
+                    kind="liquidity",
+                    ticker="<cash>",
+                    message=(
+                        f"'{need.label}' came due {need.date.isoformat()} "
+                        f"({overdue}d ago) and ${gap:,.0f} was never funded here. "
+                        "Either it was met outside this config or it was missed -- "
+                        "update or remove the need so this stops firing."
+                    ),
+                )
+            )
+        elif months <= 12:
             alerts.append(
                 Alert(
                     severity="critical" if months <= 3 else "warn",
