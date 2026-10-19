@@ -3,3 +3,5 @@ __pycache__/
 .pytest_cache/
 portfolio.yaml
 research/
+dashboard.json
+dashboard.html

@@ -451,3 +451,31 @@ def test_watchlist_section_refuses_to_invent_holdings():
     empty = Portfolio(positions=[], cash=0.0)
     section = alerts.watchlist_prompt_section(empty, [])
     assert "Do not invent" in section
+
+
+def test_dashboard_renders_positions_and_escapes_notes():
+    """The page leads with holdings, measures against the baseline, and never
+    lets a note's text become markup."""
+    from portfolio_agent import dashboard
+
+    p = make_portfolio()  # VOO 100 @ 500, TSLA 100 @ 300
+    html = dashboard.render(
+        p,
+        dt.date(2026, 7, 25),
+        {"VOO": 400.0, "TSLA": 300.0},
+        alerts=[],
+        data={
+            "notes": {"TSLA": "<b>reports</b> Oct 21"},
+            "day_moves": {"VOO": -1.1},
+            "themes": [{"name": "Tesla", "owned": ["TSLA"], "names": []}],
+        },
+    )
+
+    assert "<title>Pre-Open Book</title>" in html
+    assert "VOO" in html and "TSLA" in html
+    assert "&lt;b&gt;reports&lt;/b&gt;" in html and "<b>reports</b>" not in html
+    # VOO gained $10,000 against its Jul 25 price; TSLA was flat.
+    assert "+$10,000" in html
+    # A position with no last-session move renders a dash, not a crash.
+    assert '<span class="chip flat">—</span>' in html
+    assert "You own $30,000" in html

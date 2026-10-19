@@ -230,6 +230,17 @@ def cmd_watch(args) -> int:
     return 0
 
 
+def cmd_dashboard(args) -> int:
+    from . import dashboard
+
+    html = dashboard.build(args.config, args.data)
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(html)
+    print(f"Wrote {out} ({len(html):,} bytes)")
+    return 0
+
+
 def cmd_sources(args) -> int:
     from . import monitor
 
@@ -326,6 +337,13 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("watch", help="evaluate event-driven watch rules").set_defaults(
         func=cmd_watch
     )
+
+    dash_parser = sub.add_parser("dashboard", help="render the morning dashboard to HTML")
+    dash_parser.add_argument(
+        "--data", default="dashboard.json", help="daily notes and theme scouting (JSON)"
+    )
+    dash_parser.add_argument("--out", default="dashboard.html", help="output HTML path")
+    dash_parser.set_defaults(func=cmd_dashboard)
 
     sources_parser = sub.add_parser("sources", help="print the source catalog with biases")
     sources_parser.add_argument("--sources", default="sources.yaml")
