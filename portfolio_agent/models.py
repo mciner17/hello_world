@@ -115,6 +115,9 @@ class Portfolio:
     ltcg_rate: float = 0.15
     external_accounts: list[ExternalAccount] = field(default_factory=list)
     prices_as_of: dt.date | None = None
+    # A standing cash floor with no due date (an emergency fund). Unlike a
+    # cash need it never "comes due"; it is simply never investable.
+    emergency_fund: float = 0.0
 
     def price_age_days(self, asof: dt.date | None = None) -> int | None:
         """How old the configured prices are, or None if the config never said.
@@ -222,4 +225,5 @@ def load_portfolio(path: str | Path) -> Portfolio:
         ltcg_rate=float(raw.get("ltcg_rate", 0.15)),
         external_accounts=external,
         prices_as_of=_parse_date(raw["prices_as_of"]) if raw.get("prices_as_of") else None,
+        emergency_fund=float(raw.get("emergency_fund", 0.0)),
     )

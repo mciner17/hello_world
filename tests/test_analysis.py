@@ -479,3 +479,20 @@ def test_dashboard_renders_positions_and_escapes_notes():
     # A position with no last-session move renders a dash, not a crash.
     assert '<span class="chip flat">—</span>' in html
     assert "You own $30,000" in html
+
+
+def test_emergency_fund_is_reserved_and_guarded(tmp_path):
+    """An emergency fund has no due date: it is always carved out of the
+    investable base, and a warning fires only if cash drops beneath it."""
+    from portfolio_agent import alerts
+
+    watch = _watch_config(tmp_path, "watch:\n  default_move_pct: 5.0\n")
+
+    covered = make_portfolio(cash=38_000.0, emergency_fund=25_000.0)
+    assert analysis.reserved_for_cash_needs(covered) == pytest.approx(25_000)
+    assert not [a for a in alerts.evaluate(covered, watch) if a.kind == "emergency_fund"]
+
+    short = make_portfolio(cash=10_000.0, emergency_fund=25_000.0)
+    fired = [a for a in alerts.evaluate(short, watch) if a.kind == "emergency_fund"]
+    assert [a.severity for a in fired] == ["warn"]
+    assert "$25,000" in fired[0].message

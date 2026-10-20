@@ -145,8 +145,9 @@ def plan_liquidity(portfolio: Portfolio, need: CashNeed) -> LiquidityPlan:
 
 
 def reserved_for_cash_needs(portfolio: Portfolio) -> float:
-    """Total cash that must be carved out before anything is invested for growth."""
-    return sum(
+    """Total cash that must be carved out before anything is invested for growth:
+    the standing emergency fund plus any dated need inside the de-risk horizon."""
+    return portfolio.emergency_fund + sum(
         n.amount for n in portfolio.cash_needs if n.months_away() <= DERISK_HORIZON_MONTHS
     )
 

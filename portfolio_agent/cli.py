@@ -21,6 +21,11 @@ def _constraints_text(portfolio: Portfolio) -> str:
         f"- Marginal ordinary rate {portfolio.marginal_tax_rate:.0%}, "
         f"long-term capital gains rate {portfolio.ltcg_rate:.0%}.",
     ]
+    if portfolio.emergency_fund:
+        lines.append(
+            f"- Emergency fund: ${portfolio.emergency_fund:,.0f} of cash is a standing floor "
+            f"with no due date. Never recommend investing it."
+        )
     for need in portfolio.cash_needs:
         plan = analysis.plan_liquidity(portfolio, need)
         lines.append(

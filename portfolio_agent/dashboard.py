@@ -108,7 +108,8 @@ def _summary(portfolio: Portfolio, rows: list[dict], invested: float, base_date,
   <div class="cell">
     <div class="label">Stocks &amp; crypto</div>
     <div class="big">{_money(invested)}</div>
-    <div class="sub">plus {_money(portfolio.cash)} cash</div>
+    <div class="sub">plus {_money(portfolio.cash)} cash{
+      f" ({_money(portfolio.emergency_fund)} of it emergency fund)" if portfolio.emergency_fund else ""}</div>
   </div>
   <div class="cell">
     <div class="label">Since {since_label}</div>

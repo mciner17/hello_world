@@ -315,6 +315,20 @@ def evaluate(
                 )
             )
 
+    # --- Emergency fund ------------------------------------------------------
+    if portfolio.emergency_fund and portfolio.cash < portfolio.emergency_fund:
+        alerts.append(
+            Alert(
+                severity="warn",
+                kind="emergency_fund",
+                ticker="<cash>",
+                message=(
+                    f"cash ${portfolio.cash:,.0f} is below the ${portfolio.emergency_fund:,.0f} "
+                    "emergency fund -- refill it before adding to any position"
+                ),
+            )
+        )
+
     alerts.sort(key=lambda a: (SEVERITY_ORDER.get(a.severity, 3), a.kind, a.ticker))
     return alerts
 
