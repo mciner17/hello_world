@@ -1,0 +1,117 @@
+# EXAMPLE ONLY -- every number below is invented.
+#
+# Copy to portfolio.yaml and replace with your real holdings before running
+# anything. The flag below makes the tool shout if you forget; delete it only
+# once the positions are genuinely yours.
+placeholder_data: true
+
+cash: 3000
+
+marginal_tax_rate: 0.24   # ordinary income rate, applied to short-term gains
+ltcg_rate: 0.15           # long-term capital gains rate
+
+positions:
+  - ticker: VOO
+    shares: 42
+    price: 545.00
+    account: taxable
+    sleeve: core
+    lots:
+      - shares: 42
+        cost_basis_per_share: 470.00
+        acquired: 2024-08-19
+
+  - ticker: TSLA
+    shares: 75
+    price: 318.00
+    account: taxable
+    sleeve: tesla
+    lots:
+      - shares: 45
+        cost_basis_per_share: 205.00
+        acquired: 2023-09-11
+      - shares: 30
+        cost_basis_per_share: 344.00
+        acquired: 2026-03-02
+
+  - ticker: NVDA
+    shares: 60
+    price: 176.00
+    account: taxable
+    sleeve: semiconductor
+    lots:
+      - shares: 60
+        cost_basis_per_share: 121.00
+        acquired: 2024-11-05
+
+  - ticker: IONQ
+    shares: 260
+    price: 42.00
+    account: taxable
+    sleeve: quantum
+    lots:
+      - shares: 260
+        cost_basis_per_share: 53.00
+        acquired: 2026-01-15
+
+# Accounts that count toward household risk but are never traded by this tool.
+# Fill in `composition` -- it decides whether the managed account is
+# diversifying the household or concentrating it further.
+external_accounts:
+  - label: 401k (not being touched)
+    value: 400000
+    composition: unknown
+
+# Known future liquidity requirements. Anything inside 12 months is carved out
+# of the portfolio before growth targets are computed.
+cash_needs:
+  - amount: 25000
+    date: 2026-10-15
+    label: October cash requirement
+
+# Event-driven watch rules, evaluated by `cli watch` and folded into every
+# scheduled brief. These are deterministic -- a dated event does not need a
+# language model to be seen coming.
+watch:
+  default_move_pct: 5.0
+  lead_days: [30, 14, 7, 1]
+  max_position_weight: 0.25   # flag any position above this share of invested assets
+
+  calendar:
+    # Verify these against primary sources before trusting them; they are
+    # written down here so they cannot be forgotten, not so they can be assumed.
+    - date: 2026-08-06
+      label: SPCX first major insider unlock (~911.5M shares)
+      tickers: [SPCX]
+      severity: critical
+    - date: 2026-12-08
+      label: SPCX 180-day lockup fully expires
+      tickers: [SPCX]
+      severity: warn
+
+  rules:
+    - ticker: SPCX
+      move_pct: 8.0
+      below: 110.85       # 52-week low as observed 2026-07-25
+      above: 135.00       # IPO price
+
+# Target weights for the INVESTABLE remainder (after cash needs are reserved).
+# Must sum to 1.0.
+#
+# `core` is small here on the assumption that a large 401k already holds broad
+# index exposure. If that outside account turns out NOT to be diversified,
+# raise `core` substantially before anything else.
+#
+# `spacex` is a real sleeve: SpaceX trades as NASDAQ:SPCX following its
+# 2026-06-12 IPO. Note that its insider lockup unwinds in tranches from
+# 2026-08-06 through 2026-12-08, so verify where that schedule stands before
+# sizing -- and see the README on why the agent re-checks corporate status
+# rather than trusting any of this comment.
+targets:
+  core: 0.15
+  semiconductor: 0.26
+  quantum: 0.15
+  utilities: 0.14
+  tesla: 0.12
+  spacex: 0.08
+  cash: 0.10           # dry powder, separate from the October reserve

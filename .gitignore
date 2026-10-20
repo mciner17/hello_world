@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+portfolio.yaml
+research/
+dashboard.json
+dashboard.html

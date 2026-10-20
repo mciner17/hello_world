@@ -1,0 +1,205 @@
+# Source catalog for scheduled market checks.
+#
+# Tiers are ordered by how much weight a claim from that tier deserves.
+# Every source carries a `bias` field. That field is not decoration -- a source
+# with no known bias listed is a source nobody has audited, which is worse than
+# one with a documented tilt.
+#
+# On "track record": auditable records for market pundits mostly do not exist.
+# Survivorship bias alone overstates median active fund alpha by ~0.60%/yr
+# (1991-2020, US equity funds), backfill bias lets managers publish only after a
+# good run, and top-performing managers routinely fail to repeat. Treat any
+# unaudited claim of a hot hand as marketing. The sources below are ranked by
+# VERIFIABILITY, not by reputation.
+
+tiers:
+
+  primary:
+    weight: 1.0
+    description: >
+      Filings and exchange data. The only tier where a claim can be treated as
+      fact without corroboration. Slow, but never wrong about what it states.
+    sources:
+      - name: SEC EDGAR full-text search
+        url: https://efts.sec.gov/LATEST/search-index?q=
+        covers: 10-K, 10-Q, 8-K, S-1, 13D/G, Form 4 insider transactions
+        why: Ground truth for financials, dilution, lockups, insider sales.
+        bias: none -- but filings are lagging and deliberately unhelpful in tone
+        cost: free
+
+      - name: Company investor-relations pages
+        covers: earnings dates, guidance, press releases, transcripts
+        why: First place a guidance change appears, ahead of press coverage.
+        bias: management incentive to frame favorably; read numbers, skip prose
+        cost: free
+
+      - name: Nasdaq/NYSE notices and index committee announcements
+        covers: index adds/deletes, halts, listing changes
+        why: Forced-flow events move prices independent of fundamentals.
+        bias: none
+        cost: free
+
+  realtime:
+    weight: 0.6
+    description: >
+      Speed tier. Use for what is happening and what the tape is reacting to.
+      Never use as ground truth for a number -- verify against primary.
+    sources:
+      - name: Reuters Markets
+        url: https://www.reuters.com/markets/
+        why: Fastest wire with original reporting; low editorializing.
+        bias: minimal; occasionally slow on tech-specific supply chain stories
+        cost: free tier adequate
+
+      - name: Bloomberg
+        url: https://www.bloomberg.com/markets
+        why: Deepest original reporting; breaks most material corporate news.
+        bias: minimal on reporting; opinion section is clearly separated
+        cost: free articles limited; Terminal ~$2k+/mo and not warranted here
+
+      - name: CNBC Pro
+        url: https://www.cnbc.com/pro/
+        why: Real-time commentary and earnings coverage during market hours.
+        bias: >
+          strong recency and narrative bias; guests are talking their book by
+          default. Value drops sharply outside market hours.
+        cost: paid
+
+      - name: Benzinga Pro
+        url: https://pro.benzinga.com/
+        why: Rated fastest newsfeed for price-moving headlines; squawk audio.
+        bias: >
+          optimized for speed over accuracy; frequent low-signal headlines and
+          heavy small-cap promotional flow. Confirm before acting.
+        cost: paid
+
+      - name: Stock Titan live feed
+        url: https://www.stocktitan.net/news/live.html
+        why: Free real-time press-release firehose.
+        bias: unfiltered PR; no editorial screening at all
+        cost: free
+
+  deep:
+    weight: 0.8
+    description: >
+      Analytical tier. Slower, higher signal, and where non-consensus calls
+      actually originate. This is the tier that earns its keep on your themes.
+    sources:
+      - name: SemiAnalysis (Dylan Patel)
+        url: https://semianalysis.com/
+        covers: semiconductors, AI compute supply chain, datacenter power
+        why: >
+          Best-sourced public work on AI semis and the power constraint.
+          Correctly called the US AI power scale-up from ~3GW to ~28GW, the
+          memory crunch, and the shift of the binding constraint from power to
+          logic, ahead of consensus. Directly relevant to both your
+          semiconductor and utilities theses.
+        bias: >
+          IMPORTANT -- a documented perpetual-scarcity tilt. Presents
+          proprietary models as established fact, extrapolates extreme
+          scenarios as base cases, and underweights the market's ability to
+          route around serial bottlenecks. A scarcity narrative also serves
+          its consulting client base. Read the reasoning, discount the alarm.
+        cost: free tier plus paid research
+
+      - name: Arete Research
+        url: https://www.arete.net/
+        covers: TMT, semiconductors, enterprise software
+        why: Independent since 2000, no banking conflicts, institutional buyer base.
+        bias: independent of issuers; institutional-only access limits availability
+        cost: institutional
+
+      - name: Stratechery (Ben Thompson)
+        url: https://stratechery.com/
+        covers: tech strategy and business model analysis
+        why: Strategic framing of why a tech business wins or loses; not a stock picker.
+        bias: >
+          strategy-first, valuation-indifferent -- excellent on whether a
+          company will win, near-silent on whether the price is sane
+        cost: paid
+
+  positioning:
+    weight: 0.5
+    description: >
+      What money is actually doing, as opposed to what commentators say. Useful
+      for spotting crowding -- the main risk in a concentrated thematic book.
+    sources:
+      - name: WhaleWisdom / Dataroma (13F aggregation)
+        url: https://whalewisdom.com/
+        why: Institutional long positions and quarter-over-quarter changes.
+        bias: >
+          STRUCTURAL LAG -- 13Fs are due 45 days after quarter end, so a "buy"
+          may already have been sold. Longs only: no shorts, no options, no
+          derivatives. A research input, never a trade signal.
+        cost: free tier plus paid
+
+      - name: SEC Form 4 insider transactions
+        why: >
+          Real, timely insider buying and selling, filed within two business
+          days. Far more current than 13F and directly relevant to post-IPO
+          unlock supply.
+        bias: >
+          sales are noisy (scheduled 10b5-1 plans, tax withholding); insider
+          BUYING carries far more signal than selling
+        cost: free via EDGAR
+
+      - name: TipRanks analyst rankings
+        url: https://www.tipranks.com/experts/analysts
+        why: >
+          The closest thing to an audited pundit record. Methodology built with
+          Cornell's finance department; ranks on success rate, average return,
+          and a z-test for whether results beat chance. Volatility-adjusted by
+          sector so specialists in volatile names cannot game it.
+        bias: >
+          measures sell-side price-target accuracy over a fixed window, which
+          is not the same as investment skill; still subject to survivorship
+          among covered analysts
+        cost: free tier plus paid
+
+  contrarian:
+    weight: 0.7
+    description: >
+      Sources that argue the other side. Deliberately included because a
+      concentrated thematic book fails from unexamined consensus, not from
+      missing one more bullish take.
+    sources:
+      - name: Activist short-seller reports
+        covers: Hindenburg-style research, Kerrisdale, Muddy Waters, Culper
+        why: >
+          The only research genre paid to find what is wrong. Frequently
+          correct on accounting and disclosure issues in speculative names --
+          exactly the risk profile of a quantum sleeve.
+        bias: >
+          author is short and wants the price down; claims are motivated but
+          the underlying documents cited are usually checkable
+        cost: free on publication
+
+      - name: FT Alphaville / Matt Levine (Money Stuff)
+        url: https://www.bloomberg.com/opinion/authors/ARbTQlRLRjE/matthew-s-levine
+        why: Structural skepticism about market mechanics, financing, and promotion.
+        bias: skeptical by disposition; commentary not recommendations
+        cost: free newsletter
+
+      - name: Short interest and days-to-cover data
+        why: >
+          Identifies where the crowd is positioned against you, and where a
+          squeeze or an unwind is mechanically possible.
+        bias: none; but high short interest is not itself a thesis
+        cost: free via exchange and broker data
+
+# Themes mapped to the sources that matter most for each. The scheduled brief
+# uses this to focus rather than sweeping everything every time.
+theme_focus:
+  semiconductor:
+    - SemiAnalysis (Dylan Patel)
+    - Arete Research
+    - SEC EDGAR full-text search
+    - Reuters Markets
+  utilities:
+    - SemiAnalysis (Dylan Patel)
+    - Reuters Markets
+    - SEC EDGAR full-text search
+  quantum: [SEC EDGAR full-text search, Activist short-seller reports, Stock Titan live feed]
+  tesla: [SEC Form 4 insider transactions, Reuters Markets, Activist short-seller reports]
+  spacex: [SEC Form 4 insider transactions, SEC EDGAR full-text search, Reuters Markets]
+  core: [Reuters Markets, Bloomberg]
